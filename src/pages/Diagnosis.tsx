@@ -7,13 +7,16 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Stethoscope, Search, AlertCircle, Activity, ArrowRight, Pill, Thermometer, X } from "lucide-react";
+import { Stethoscope, Search, AlertCircle, Activity, ArrowRight, Pill, Thermometer, X, CalendarDays, FileText } from "lucide-react";
 import { getSymptomsByCategory, symptoms, Symptom } from "@/data/symptoms";
 import { getDiseasesBySymptoms, Disease } from "@/data/diseases";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
+import { Textarea } from "@/components/ui/textarea";
+import { Slider } from "@/components/ui/slider";
+import { Label } from "@/components/ui/label";
 
 const Diagnosis = () => {
   const [searchQuery, setSearchQuery] = useState("");
@@ -23,6 +26,8 @@ const Diagnosis = () => {
   const [selectedDisease, setSelectedDisease] = useState<Disease | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>("All");
+  const [symptomsDuration, setSymptomsDuration] = useState<number>(1);
+  const [additionalInfo, setAdditionalInfo] = useState<string>("");
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
 
@@ -97,6 +102,8 @@ const Diagnosis = () => {
     setDiagnoseClicked(false);
     setDiagnosisResults([]);
     setSelectedDisease(null);
+    setSymptomsDuration(1);
+    setAdditionalInfo("");
   };
 
   const getSeverityColor = (severity: "mild" | "moderate" | "severe") => {
@@ -249,6 +256,52 @@ const Diagnosis = () => {
                   </div>
                 )}
               </CardContent>
+              
+              {/* New section for symptom duration */}
+              <CardHeader className="pt-0">
+                <CardTitle className="text-sm flex items-center">
+                  <CalendarDays className="mr-2 h-4 w-4 text-medical-primary" />
+                  Duration of Symptoms
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  How many days have you been experiencing these symptoms?
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm">{symptomsDuration} {symptomsDuration === 1 ? 'day' : 'days'}</span>
+                  </div>
+                  <Slider
+                    defaultValue={[1]}
+                    min={1}
+                    max={30}
+                    step={1}
+                    value={[symptomsDuration]}
+                    onValueChange={(values) => setSymptomsDuration(values[0])}
+                  />
+                </div>
+              </CardContent>
+              
+              {/* New section for additional information */}
+              <CardHeader className="pt-0">
+                <CardTitle className="text-sm flex items-center">
+                  <FileText className="mr-2 h-4 w-4 text-medical-primary" />
+                  Additional Information
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  Any other details that might be relevant for diagnosis
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <Textarea 
+                  placeholder="Enter any additional information about your symptoms or medical history..."
+                  value={additionalInfo}
+                  onChange={(e) => setAdditionalInfo(e.target.value)}
+                  className="resize-none h-24"
+                />
+              </CardContent>
+              
               <CardFooter>
                 <Button
                   variant="outline"
@@ -336,14 +389,20 @@ const Diagnosis = () => {
                         <div>
                           <CardTitle className="text-2xl">{selectedDisease.name}</CardTitle>
                           <CardDescription className="mt-1">
-                            <Badge className={getSeverityColor(selectedDisease.severity)}>
-                              {selectedDisease.severity} severity
-                            </Badge>
-                            {selectedDisease.contagious && (
-                              <Badge variant="outline" className="ml-2">
-                                Contagious
+                            <div className="flex flex-wrap gap-2 mt-1">
+                              <Badge className={getSeverityColor(selectedDisease.severity)}>
+                                {selectedDisease.severity} severity
                               </Badge>
-                            )}
+                              {selectedDisease.contagious && (
+                                <Badge variant="outline">
+                                  Contagious
+                                </Badge>
+                              )}
+                              <Badge variant="outline" className="flex items-center">
+                                <CalendarDays className="h-3 w-3 mr-1" />
+                                {symptomsDuration} {symptomsDuration === 1 ? 'day' : 'days'} duration
+                              </Badge>
+                            </div>
                           </CardDescription>
                         </div>
                       </div>
@@ -369,6 +428,18 @@ const Diagnosis = () => {
                             ))}
                         </div>
                       </div>
+                      
+                      {additionalInfo && (
+                        <div>
+                          <h3 className="text-lg font-medium mb-2 flex items-center">
+                            <FileText className="mr-2 h-5 w-5 text-medical-primary" />
+                            Additional Information
+                          </h3>
+                          <div className="bg-gray-50 p-3 rounded-md text-gray-700">
+                            {additionalInfo}
+                          </div>
+                        </div>
+                      )}
                       
                       <div>
                         <h3 className="text-lg font-medium mb-2 flex items-center">
