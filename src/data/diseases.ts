@@ -23,6 +23,12 @@ export interface Disease {
   followUpRecommendation: string;
 }
 
+export interface DiseaseMatch {
+  disease: Disease;
+  matchScore: number;
+  matchingSymptoms: string[];
+}
+
 export const diseases: Disease[] = [
   {
     id: "common_cold",
@@ -396,8 +402,8 @@ export const diseases: Disease[] = [
   }
 ];
 
-// Helper function to match symptoms to diseases
-export const getDiseasesBySymptoms = (selectedSymptomIds: string[]): Disease[] => {
+// Enhanced helper function to match symptoms to diseases with percentage
+export const getDiseasesBySymptoms = (selectedSymptomIds: string[]): DiseaseMatch[] => {
   if (!selectedSymptomIds.length) return [];
   
   // Calculate match score for each disease
@@ -406,17 +412,29 @@ export const getDiseasesBySymptoms = (selectedSymptomIds: string[]): Disease[] =
       selectedSymptomIds.includes(symptomId)
     );
     
+    // Calculate two-way match score:
+    // 1. How many of the disease's symptoms are in the user selection
+    const diseaseSymptomsCoverage = matchingSymptoms.length / disease.symptoms.length;
+    
+    // 2. How many of the user's selected symptoms are in this disease
+    const userSymptomsCoverage = matchingSymptoms.length / selectedSymptomIds.length;
+    
+    // Weighted average with more weight on disease symptoms coverage
+    const overallMatchScore = (diseaseSymptomsCoverage * 0.7) + (userSymptomsCoverage * 0.3);
+    
+    // Return as a percentage
+    const matchPercentage = Math.round(overallMatchScore * 100);
+    
     return {
       disease,
-      score: matchingSymptoms.length / disease.symptoms.length,
-      matchingCount: matchingSymptoms.length
+      matchScore: matchPercentage,
+      matchingSymptoms: matchingSymptoms
     };
   });
   
   // Filter for relevant matches and sort by score
   return matchScores
-    .filter(match => match.matchingCount > 0) // Must have at least one matching symptom
-    .sort((a, b) => b.score - a.score) // Sort by score descending
-    .slice(0, 5) // Take top 5 matches
-    .map(match => match.disease);
+    .filter(match => match.matchingSymptoms.length > 0) // Must have at least one matching symptom
+    .sort((a, b) => b.matchScore - a.matchScore) // Sort by score descending
+    .slice(0, 5); // Take top 5 matches
 };

@@ -7,23 +7,23 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Stethoscope, Search, AlertCircle, Activity, ArrowRight, Pill, Thermometer, X, CalendarDays, FileText } from "lucide-react";
+import { Stethoscope, Search, AlertCircle, Activity, ArrowRight, Pill, Thermometer, X, CalendarDays, FileText, Gauge, Percent, CheckCircle2 } from "lucide-react";
 import { getSymptomsByCategory, symptoms, Symptom } from "@/data/symptoms";
-import { getDiseasesBySymptoms, Disease } from "@/data/diseases";
+import { getDiseasesBySymptoms, Disease, DiseaseMatch } from "@/data/diseases";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useToast } from "@/components/ui/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { Link } from "react-router-dom";
 import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
-import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
 
 const Diagnosis = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSymptoms, setSelectedSymptoms] = useState<Symptom[]>([]);
   const [diagnoseClicked, setDiagnoseClicked] = useState(false);
-  const [diagnosisResults, setDiagnosisResults] = useState<Disease[]>([]);
-  const [selectedDisease, setSelectedDisease] = useState<Disease | null>(null);
+  const [diagnosisResults, setDiagnosisResults] = useState<DiseaseMatch[]>([]);
+  const [selectedDisease, setSelectedDisease] = useState<DiseaseMatch | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [activeCategory, setActiveCategory] = useState<string>("All");
   const [symptomsDuration, setSymptomsDuration] = useState<number>(1);
@@ -117,6 +117,15 @@ const Diagnosis = () => {
       default:
         return "bg-gray-100 text-gray-800";
     }
+  };
+
+  // Get a color for the match score percentage
+  const getMatchScoreColor = (score: number) => {
+    if (score >= 80) return "text-green-600";
+    if (score >= 60) return "text-emerald-600";
+    if (score >= 40) return "text-amber-600";
+    if (score >= 20) return "text-orange-600";
+    return "text-red-600";
   };
 
   return (
@@ -257,7 +266,7 @@ const Diagnosis = () => {
                 )}
               </CardContent>
               
-              {/* New section for symptom duration */}
+              {/* Section for symptom duration */}
               <CardHeader className="pt-0">
                 <CardTitle className="text-sm flex items-center">
                   <CalendarDays className="mr-2 h-4 w-4 text-medical-primary" />
@@ -283,7 +292,7 @@ const Diagnosis = () => {
                 </div>
               </CardContent>
               
-              {/* New section for additional information */}
+              {/* Section for additional information */}
               <CardHeader className="pt-0">
                 <CardTitle className="text-sm flex items-center">
                   <FileText className="mr-2 h-4 w-4 text-medical-primary" />
@@ -344,21 +353,33 @@ const Diagnosis = () => {
                   <CardContent>
                     {diagnosisResults.length > 0 ? (
                       <div className="space-y-2">
-                        {diagnosisResults.map((disease) => (
+                        {diagnosisResults.map((result) => (
                           <div 
-                            key={disease.id}
+                            key={result.disease.id}
                             className={`p-3 rounded-md cursor-pointer transition-colors ${
-                              selectedDisease?.id === disease.id 
+                              selectedDisease?.disease.id === result.disease.id 
                                 ? 'bg-medical-light border-l-4 border-medical-primary' 
                                 : 'bg-gray-50 hover:bg-gray-100'
                             }`}
-                            onClick={() => setSelectedDisease(disease)}
+                            onClick={() => setSelectedDisease(result)}
                           >
-                            <div className="flex justify-between items-center">
-                              <h4 className="font-medium">{disease.name}</h4>
-                              <Badge className={getSeverityColor(disease.severity)}>
-                                {disease.severity}
+                            <div className="flex justify-between items-center mb-2">
+                              <h4 className="font-medium">{result.disease.name}</h4>
+                              <Badge className={getSeverityColor(result.disease.severity)}>
+                                {result.disease.severity}
                               </Badge>
+                            </div>
+                            
+                            <div className="flex items-center mt-2">
+                              <Gauge className="h-4 w-4 mr-1 text-blue-600" />
+                              <span className="text-sm mr-2">Match:</span>
+                              <Progress 
+                                value={result.matchScore} 
+                                className="h-2 flex-1" 
+                              />
+                              <span className={`ml-2 text-sm font-medium ${getMatchScoreColor(result.matchScore)}`}>
+                                {result.matchScore}%
+                              </span>
                             </div>
                           </div>
                         ))}
@@ -387,42 +408,69 @@ const Diagnosis = () => {
                     <CardHeader>
                       <div className="flex justify-between items-start">
                         <div>
-                          <CardTitle className="text-2xl">{selectedDisease.name}</CardTitle>
-                          <CardDescription className="mt-1">
-                            <div className="flex flex-wrap gap-2 mt-1">
-                              <Badge className={getSeverityColor(selectedDisease.severity)}>
-                                {selectedDisease.severity} severity
+                          <CardTitle className="text-2xl">{selectedDisease.disease.name}</CardTitle>
+                          <div className="flex flex-wrap gap-2 mt-1">
+                            <Badge className={getSeverityColor(selectedDisease.disease.severity)}>
+                              {selectedDisease.disease.severity} severity
+                            </Badge>
+                            {selectedDisease.disease.contagious && (
+                              <Badge variant="outline">
+                                Contagious
                               </Badge>
-                              {selectedDisease.contagious && (
-                                <Badge variant="outline">
-                                  Contagious
-                                </Badge>
-                              )}
-                              <Badge variant="outline" className="flex items-center">
-                                <CalendarDays className="h-3 w-3 mr-1" />
-                                {symptomsDuration} {symptomsDuration === 1 ? 'day' : 'days'} duration
-                              </Badge>
+                            )}
+                            <Badge variant="outline" className="flex items-center">
+                              <CalendarDays className="h-3 w-3 mr-1" />
+                              {symptomsDuration} {symptomsDuration === 1 ? 'day' : 'days'} duration
+                            </Badge>
+                          </div>
+                          <div className="flex items-center mt-3">
+                            <div className="flex items-center">
+                              <Percent className="h-4 w-4 mr-1 text-blue-600" />
+                              <span className="text-sm font-medium">Match Score:</span>
+                              <span className={`ml-1 text-sm font-bold ${getMatchScoreColor(selectedDisease.matchScore)}`}>
+                                {selectedDisease.matchScore}%
+                              </span>
                             </div>
-                          </CardDescription>
+                          </div>
                         </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div>
                         <h3 className="text-lg font-medium mb-2">Description</h3>
-                        <p className="text-gray-700">{selectedDisease.description}</p>
+                        <p className="text-gray-700">{selectedDisease.disease.description}</p>
                       </div>
                       
                       <div>
                         <h3 className="text-lg font-medium mb-2 flex items-center">
                           <Activity className="mr-2 h-5 w-5 text-medical-primary" />
-                          Common Symptoms
+                          Matching Symptoms
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          {symptoms
+                            .filter(symptom => selectedDisease.matchingSymptoms.includes(symptom.id))
+                            .map(symptom => (
+                              <div key={symptom.id} className="flex items-center space-x-2">
+                                <CheckCircle2 className="h-4 w-4 text-green-500" />
+                                <span className="text-sm">{symptom.name}</span>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <h3 className="text-lg font-medium mb-2 flex items-center">
+                          <Activity className="mr-2 h-5 w-5 text-medical-primary" />
+                          All Common Symptoms
                         </h3>
                         <div className="flex flex-wrap gap-2">
                           {symptoms
-                            .filter(symptom => selectedDisease.symptoms.includes(symptom.id))
+                            .filter(symptom => selectedDisease.disease.symptoms.includes(symptom.id))
                             .map(symptom => (
-                              <Badge key={symptom.id} variant="secondary">
+                              <Badge 
+                                key={symptom.id} 
+                                variant={selectedDisease.matchingSymptoms.includes(symptom.id) ? "default" : "secondary"}
+                              >
                                 {symptom.name}
                               </Badge>
                             ))}
@@ -447,7 +495,7 @@ const Diagnosis = () => {
                           Recommended Treatments
                         </h3>
                         <div className="space-y-3">
-                          {selectedDisease.treatments.map((treatment, index) => (
+                          {selectedDisease.disease.treatments.map((treatment, index) => (
                             <div key={index} className="bg-gray-50 p-3 rounded-md">
                               <div className="font-medium text-medical-dark">{treatment.name}</div>
                               <div className="text-sm text-gray-600">{treatment.type}</div>
@@ -460,7 +508,7 @@ const Diagnosis = () => {
                       <div>
                         <h3 className="text-lg font-medium mb-2">Medications</h3>
                         <div className="space-y-3">
-                          {selectedDisease.medications.map((medication, index) => (
+                          {selectedDisease.disease.medications.map((medication, index) => (
                             <div key={index} className="bg-gray-50 p-3 rounded-md">
                               <div className="font-medium text-medical-dark">{medication.name}</div>
                               <div className="text-sm">Dosage: {medication.dosage}</div>
@@ -474,7 +522,7 @@ const Diagnosis = () => {
                         <AlertCircle className="h-4 w-4" />
                         <AlertTitle>Medical Advice</AlertTitle>
                         <AlertDescription>
-                          {selectedDisease.followUpRecommendation}
+                          {selectedDisease.disease.followUpRecommendation}
                         </AlertDescription>
                       </Alert>
                     </CardContent>
